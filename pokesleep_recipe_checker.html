@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#173c32">
+<title>ポケスリ料理チェッカー</title>
+<style>
+:root{--green:#173c32;--mint:#dff3e5;--accent:#28764b;--bg:#f5f7f4;--card:#fff;--text:#202820;--muted:#69736b;--line:#dfe6df}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+header{background:linear-gradient(135deg,#173c32,#2b6b4d);color:white;padding:28px 18px}
+.hero{max-width:1000px;margin:auto;display:flex;gap:18px;align-items:center}.logo{font-size:42px;background:#ffffff1c;border-radius:18px;width:72px;height:72px;display:grid;place-items:center;flex-shrink:0}
+h1{font-size:clamp(1.35rem,4vw,2rem);margin:0 0 5px}header p{margin:0;color:#d9eadf}
+main{max-width:1000px;margin:22px auto;padding:0 14px 48px;display:grid;grid-template-columns:minmax(270px,340px) 1fr;gap:18px;align-items:start}
+.panel,.recipe{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:17px;box-shadow:0 2px 10px #203c2810}
+h2{font-size:1.1rem;margin:0 0 12px}.hint{font-size:.86rem;color:var(--muted);margin:-4px 0 12px}
+.ingredients{display:grid;grid-template-columns:1fr 1fr;gap:7px}.ingredient{border:1px solid var(--line);background:#f8faf8;border-radius:10px;padding:9px 8px;text-align:left;cursor:pointer;font:inherit;font-size:.83rem;display:flex;align-items:center;gap:7px;min-height:46px}
+.ingredient .check{width:18px;height:18px;border:1.5px solid #a8b3aa;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-size:12px}
+.ingredient[aria-pressed=true]{background:var(--mint);border-color:var(--accent);color:#174c2d}.ingredient[aria-pressed=true] .check{background:var(--accent);border-color:var(--accent);color:white}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{border:1px solid var(--line);background:white;border-radius:9px;padding:9px 12px;cursor:pointer;font:inherit;font-size:.88rem}.btn.primary{background:var(--accent);color:white;border-color:var(--accent)}.btn:focus-visible,.ingredient:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #81b99a;outline-offset:2px}
+.actions{margin-top:11px}.field{margin:15px 0 0}.field label{font-weight:650;display:block;margin-bottom:6px}.field select,.field input{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;background:white;font:inherit}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:13px}.tab{flex:1;min-width:110px}.tab[aria-pressed=true]{background:var(--green);color:white;border-color:var(--green)}
+.results-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}.results-head h2{margin:0}.count{font-size:.85rem;color:var(--muted)}
+.recipe{padding:14px;margin-bottom:10px}.recipe-top{display:flex;gap:12px;align-items:flex-start}.rank{background:#edf2ed;border-radius:10px;min-width:38px;height:38px;display:grid;place-items:center;font-weight:750}.recipe:first-child .rank{background:#faedc4}.recipe-name{font-weight:750;flex:1}.energy{text-align:right;color:var(--accent);font-size:1.12rem;font-weight:800;white-space:nowrap}.energy small{display:block;color:var(--muted);font-size:.7rem;font-weight:500}.type{font-size:.78rem;color:var(--muted);margin-top:2px}
+.recipe-items{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}.chip{font-size:.78rem;background:#f0f3f0;padding:5px 8px;border-radius:7px}.chip.used{background:var(--mint);color:#174c2d}
+.empty{padding:30px 15px;text-align:center;background:white;border:1px dashed #b9c7bb;border-radius:14px;color:var(--muted)}
+footer{max-width:1000px;margin:-24px auto 0;padding:0 14px 28px;font-size:.78rem;color:var(--muted)}footer a{color:inherit}
+@media(max-width:760px){main{grid-template-columns:1fr;margin-top:14px}.ingredients{grid-template-columns:1fr 1fr}.hero{align-items:flex-start}.logo{width:56px;height:56px;font-size:32px}.panel{padding:14px}}
+@media(max-width:380px){.ingredients{grid-template-columns:1fr}.energy{font-size:1rem}}
+</style>
+</head>
+<body>
+<header><div class="hero"><div class="logo" aria-hidden="true">🍲</div><div><h1>ポケスリ料理チェッカー</h1><p>食材を選んで、作れる料理をエナジー順にチェック！</p></div></div></header>
+<main>
+<section class="panel" aria-labelledby="ingredients-title">
+<h2 id="ingredients-title">① 食材を選択</h2><p class="hint">複数選択OK。タップでもう一度押すと解除。</p>
+<div id="ingredients" class="ingredients"></div>
+<div class="row actions"><button id="all" class="btn">全食材を選択</button><button id="clear" class="btn">選択をクリア</button></div>
+<div class="field"><label for="match">絞り込み方法</label><select id="match"><option value="all">選択食材だけで作れる料理（種類一致）</option><option value="any">選択食材を1種類以上使う料理</option></select></div>
+<p class="hint" style="margin-top:8px">※食材の種類で判定します。必要個数を所持しているかは判定しません。</p>
+</section>
+<section>
+<div class="panel">
+<h2>② 料理の種類</h2>
+<div class="tabs" id="tabs"><button class="btn tab" data-kind="すべて" aria-pressed="true">すべて</button><button class="btn tab" data-kind="カレー・シチュー" aria-pressed="false">🍛 カレー</button><button class="btn tab" data-kind="サラダ" aria-pressed="false">🥗 サラダ</button><button class="btn tab" data-kind="デザート・ドリンク" aria-pressed="false">🍰 デザート</button></div>
+<div class="field"><label for="search">料理名で検索</label><input id="search" type="search" placeholder="例：カレー、サラダ、ワッフル"></div>
+<div class="results-head" style="margin-top:14px"><h2>③ 料理一覧</h2><span id="count" class="count"></span></div>
+<div id="results" aria-live="polite"></div>
+</div>
+</section>
+</main>
+<footer>レシピ・基礎エナジーの参考：<a href="https://wikiwiki.jp/poke_sleep/料理/レシピの一覧" target="_blank" rel="noopener noreferrer">ポケモンスリープ攻略・検証 Wiki「レシピ一覧」</a>。レシピデータはサンプルを含み、全レシピ・最新値を保証しません。レシピレベル、料理の大成功、料理パワー等による増加は含みません。非公式ファンツールです。</footer>
+<script>
+const foods = ["とくせんリンゴ","モーモーミルク","あまいミツ","マメミート","ワカクサ大豆","あったかジンジャー","あんみんトマト","とくせんエッグ","ピュアなオイル","ほっこりポテト","げきからハーブ","ワカクサコーン","リラックスカカオ","めざましコーヒー","あじわいキノコ","ふといながねぎ","ずっしりカボチャ","つやつやアボカド","おいしいシッポ"];
+// Energy values are recipe base values; data is intentionally easy to edit.
+const recipes = [
+["カレー・シチュー","とびはねるカレーうどん",25539,{"マメミート":20,"げきからハーブ":22,"あったかジンジャー":39,"あじわいキノコ":31}],
+["カレー・シチュー","しんりょくアボカドグラタン",24802,{"モーモーミルク":41,"ほっこりポテト":20,"ピュアなオイル":32,"つやつやアボカド":22}],
+["カレー・シチュー","いあいぎりすき焼きカレー",20655,{"ふといながねぎ":27,"マメミート":26,"あまいミツ":26,"とくせんエッグ":22}],
+["カレー・シチュー","めざめるパワーシチュー",19061,{"ワカクサ大豆":28,"あんみんトマト":25,"あじわいキノコ":23,"めざましコーヒー":16}],
+["カレー・シチュー","なりきりバケッチャシチュー",15621,{"ずっしりカボチャ":10,"マメミート":16,"ほっこりポテト":18,"あじわいキノコ":25}],
+["カレー・シチュー","れんごくコーンキーマカレー",13690,{"げきからハーブ":27,"マメミート":24,"ワカクサコーン":14,"あったかジンジャー":12}],
+["カレー・シチュー","ワカクサカレーパン",10945,{"あったかジンジャー":20,"げきからハーブ":20,"ワカクサ大豆":8,"ピュアなオイル":15}],
+["カレー・シチュー","ニンジャカレー",9445,{"ワカクサ大豆":24,"マメミート":9,"ふといながねぎ":12,"あじわいキノコ":5}],
+["カレー・シチュー","ぜったいねむりバターカレー",9010,{"ほっこりポテト":18,"あんみんトマト":15,"リラックスカカオ":12,"モーモーミルク":10}],
+["カレー・シチュー","あぶりテールカレー",7483,{"おいしいシッポ":8,"げきからハーブ":25}],
+["カレー・シチュー","からくちネギもりカレー",5900,{"ふといながねぎ":14,"あったかジンジャー":10,"げきからハーブ":8}],
+["カレー・シチュー","キノコのほうしカレー",4162,{"あじわいキノコ":14,"ほっこりポテト":9}],
+["カレー・シチュー","じゅうなんコーンシチュー",4670,{"ワカクサコーン":14,"モーモーミルク":8,"ほっこりポテト":8}],
+["カレー・シチュー","ビルドアップマメカレー",3372,{"ワカクサ大豆":12,"マメミート":6,"げきからハーブ":4,"とくせんエッグ":4}],
+["カレー・シチュー","ほっこりホワイトシチュー",3181,{"モーモーミルク":10,"ほっこりポテト":8,"あじわいキノコ":4}],
+["カレー・シチュー","とけるオムカレー",2150,{"とくせんエッグ":10,"あんみんトマト":6}],
+["カレー・シチュー","サンパワートマトカレー",2078,{"あんみんトマト":10,"げきからハーブ":5}],
+["カレー・シチュー","ひでりカツレツカレー",1942,{"マメミート":10,"ピュアなオイル":5}],
+["カレー・シチュー","満腹チーズバーグカレー",1910,{"モーモーミルク":8,"マメミート":8}],
+["カレー・シチュー","ベイビィハニーカレー",839,{"あまいミツ":7}],
+["サラダ","ごろごろねっとうサラダ",25356,{"ずっしりカボチャ":20,"ほっこりポテト":30,"ワカクサコーン":18,"あじわいキノコ":27}],
+["サラダ","じならしワカモレチップス",25162,{"つやつやアボカド":28,"ワカクサコーン":25,"げきからハーブ":30,"ワカクサ大豆":22}],
+["サラダ","まけんきコーヒーサラダ",20218,{"めざましコーヒー":28,"マメミート":28,"ピュアなオイル":22,"ほっこりポテト":22}],
+["サラダ","りんごさんヨーグルトサラダ",19293,{"とくせんエッグ":35,"とくせんリンゴ":28,"あんみんトマト":23,"モーモーミルク":18}],
+["サラダ","はなふぶきミモザサラダ",11881,{"とくせんエッグ":25,"ピュアなオイル":17,"ほっこりポテト":15,"マメミート":12}],
+["サラダ","ニンジャサラダ",11659,{"ふといながねぎ":15,"ワカクサ大豆":19,"あじわいキノコ":12,"あったかジンジャー":11}],
+["サラダ","ワカクササラダ",11393,{"ピュアなオイル":22,"ワカクサコーン":17,"あんみんトマト":14,"ほっこりポテト":9}],
+["サラダ","ヤドンテールのペッパーサラダ",8169,{"おいしいシッポ":10,"げきからハーブ":10,"ピュアなオイル":15}],
+["サラダ","めいそうスイートサラダ",7675,{"とくせんリンゴ":21,"あまいミツ":16,"ワカクサコーン":12}],
+["サラダ","くだけるアボカドサラダ",7125,{"つやつやアボカド":14,"ワカクサ大豆":18,"ピュアなオイル":10}],
+["サラダ","キノコのほうしサラダ",5859,{"あじわいキノコ":17,"あんみんトマト":8,"ピュアなオイル":8}],
+["サラダ","オーバーヒートサラダ",5225,{"げきからハーブ":17,"あったかジンジャー":10,"あんみんトマト":8}],
+["サラダ","くいしんぼうポテトサラダ",5040,{"ほっこりポテト":14,"とくせんエッグ":9,"マメミート":7,"とくせんリンゴ":6}],
+["サラダ","ムラっけチョコミートサラダ",3665,{"リラックスカカオ":14,"マメミート":9}],
+["サラダ","うるおいとうふサラダ",3113,{"ワカクサ大豆":15,"あんみんトマト":9}],
+["サラダ","モーモーカプレーゼ",2942,{"モーモーミルク":12,"あんみんトマト":6,"ピュアなオイル":5}],
+["サラダ","めんえきねぎサラダ",2845,{"ふといながねぎ":10,"あったかジンジャー":5}],
+["サラダ","とくせんリンゴサラダ",855,{"とくせんリンゴ":8}],
+["デザート・ドリンク","みつあつめチョコワッフル",25484,{"あまいミツ":35,"リラックスカカオ":30,"とくせんエッグ":20,"モーモーミルク":30}],
+["デザート・ドリンク","おちゃかいコーンスコーン",10925,{"とくせんリンゴ":20,"あったかジンジャー":20,"ワカクサコーン":18,"モーモーミルク":9}],
+["デザート・ドリンク","だいばくはつポップコーン",6048,{"ワカクサコーン":15,"ピュアなオイル":14,"モーモーミルク":7}],
+["デザート・ドリンク","ちからもちソイドーナッツ",5547,{"ピュアなオイル":12,"ワカクサ大豆":16,"リラックスカカオ":7}],
+["デザート・ドリンク","ネロリのデトックスティー",5065,{"あったかジンジャー":11,"とくせんリンゴ":15,"あじわいキノコ":9}],
+["デザート・ドリンク","ふくつのジンジャークッキー",4921,{"あまいミツ":14,"あったかジンジャー":12,"リラックスカカオ":5,"とくせんエッグ":4}],
+["デザート・ドリンク","あくまのキッスフルーツオレ",4734,{"とくせんリンゴ":11,"モーモーミルク":9,"あまいミツ":7,"リラックスカカオ":8}],
+["デザート・ドリンク","あまいかおりチョコケーキ",3378,{"あまいミツ":9,"リラックスカカオ":8,"モーモーミルク":7}],
+["デザート・ドリンク","はりきりプロテインスムージー",3263,{"ワカクサ大豆":15,"リラックスカカオ":8}],
+["デザート・ドリンク","おおきいマラサダ",3015,{"ピュアなオイル":10,"モーモーミルク":7,"あまいミツ":6}],
+["デザート・ドリンク","かるわざソイケーキ",1924,{"とくせんエッグ":8,"ワカクサ大豆":7}],
+["デザート・ドリンク","マイペースやさいジュース",1924,{"あんみんトマト":9,"とくせんリンゴ":7}],
+["デザート・ドリンク","ひのこのジンジャーティー",1913,{"あったかジンジャー":9,"とくせんリンゴ":7}],
+["デザート・ドリンク","じゅくせいスイートポテト",1907,{"ほっこりポテト":9,"モーモーミルク":5}],
+["デザート・ドリンク","ねがいごとアップルパイ",1748,{"とくせんリンゴ":12,"モーモーミルク":4}],
+["デザート・ドリンク","クラフトサイコソーダ",1079,{"あまいミツ":9}],
+["デザート・ドリンク","モーモーホットミルク",814,{"モーモーミルク":7}],
+["デザート・ドリンク","とくせんリンゴジュース",855,{"とくせんリンゴ":8}]
+].map(([type,name,energy,items])=>({type,name,energy,items}));
+
+const selected = new Set(); let currentKind="すべて";
+const $ = id => document.getElementById(id);
+function renderIngredients(){
+  $("ingredients").innerHTML="";
+  foods.forEach(name=>{
+    const b=document.createElement("button"); b.className="ingredient"; b.type="button"; b.setAttribute("aria-pressed",selected.has(name)?"true":"false");
+    const check=document.createElement("span");check.className="check";check.textContent=selected.has(name)?"✓":"";
+    const text=document.createElement("span");text.textContent=name;b.append(check,text);
+    b.addEventListener("click",()=>{selected.has(name)?selected.delete(name):selected.add(name);renderIngredients();renderRecipes()});
+    $("ingredients").append(b);
+  });
+}
+function renderRecipes(){
+ const q=$("search").value.trim().toLocaleLowerCase("ja");const mode=$("match").value;
+ let list=recipes.filter(r=>{
+   if(currentKind!=="すべて"&&r.type!==currentKind)return false;
+   if(q&&!r.name.toLocaleLowerCase("ja").includes(q))return false;
+   const keys=Object.keys(r.items);
+   if(!selected.size)return true;
+   return mode==="all"?keys.every(k=>selected.has(k)):keys.some(k=>selected.has(k));
+ }).sort((a,b)=>b.energy-a.energy);
+ $("count").textContent=`${list.length}件`;
+ const root=$("results");root.innerHTML="";
+ if(!list.length){root.innerHTML='<div class="empty">料理が見つからないよ。食材を増やすか、絞り込み方法を変えてみてね。</div>';return}
+ list.forEach((r,i)=>{
+   const card=document.createElement("article");card.className="recipe";
+   const top=document.createElement("div");top.className="recipe-top";
+   const rank=document.createElement("div");rank.className="rank";rank.textContent=i+1;
+   const info=document.createElement("div");info.style.flex="1";
+   const name=document.createElement("div");name.className="recipe-name";name.textContent=r.name;
+   const type=document.createElement("div");type.className="type";type.textContent=r.type;
+   info.append(name,type);
+   const energy=document.createElement("div");energy.className="energy";energy.append(document.createTextNode(r.energy.toLocaleString("ja-JP")));
+   const small=document.createElement("small");small.textContent="基礎エナジー";energy.append(small);
+   top.append(rank,info,energy);card.append(top);
+   const items=document.createElement("div");items.className="recipe-items";
+   Object.entries(r.items).forEach(([ingredient,qty])=>{const chip=document.createElement("span");chip.className="chip"+(selected.has(ingredient)?" used":"");chip.textContent=`${ingredient} ×${qty}`;items.append(chip)});
+   card.append(items);root.append(card);
+ });
+}
+$("all").addEventListener("click",()=>{foods.forEach(x=>selected.add(x));renderIngredients();renderRecipes()});
+$("clear").addEventListener("click",()=>{selected.clear();renderIngredients();renderRecipes()});
+$("match").addEventListener("change",renderRecipes);$("search").addEventListener("input",renderRecipes);
+document.querySelectorAll("[data-kind]").forEach(b=>b.addEventListener("click",()=>{currentKind=b.dataset.kind;document.querySelectorAll("[data-kind]").forEach(t=>t.setAttribute("aria-pressed",t===b?"true":"false"));renderRecipes()}));
+renderIngredients();renderRecipes();
+</script>
+</body>
+</html>
